@@ -1,0 +1,11 @@
+# Ignore backend and worker TS sources not included in current tsconfig
+apps/
+infra/
+dist/
+dist_server/
+node_modules/
+public/
+reports/
+logs/
+db/
+backups/

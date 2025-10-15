@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+.husky/_
+coverage/
+data/
+dist_server/
+dist_clean/
+logs/
+logs/screenshots/
+backups/
