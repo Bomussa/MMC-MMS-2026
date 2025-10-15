@@ -1,0 +1,48 @@
+name = "mms-api-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+
+# قم بتحديث zone_name بحسب نطاقك على Cloudflare
+routes = [
+  { pattern = "api.mmc-mms.com/*", zone_name = "mmc-mms.com" },
+  { pattern = "mmc-mms.com/api/*", zone_name = "mmc-mms.com" }
+]
+
+[vars]
+# لا تضع أسرار هنا؛ استخدم wrangler secret
+# SITE_ORIGIN يفضّل وضعه هنا لأنه غير سرّي
+SITE_ORIGIN = "https://mmc-mms.pages.dev"
+
+# مسارات بديلة للباكند (غير سرّية إن كانت نطاقات عامة)
+# BACKEND_ORIGIN يظل كـ secret ويتم تحديثه تلقائيًا بواسطة auto-origin-switcher.js
+PRIMARY_ORIGIN = "https://api.mmc-mms.com"
+SECONDARY_ORIGIN = "https://app.mmc-mms.com"
+# حدّث قيمة workers.dev أدناه وفق حسابك في Cloudflare
+FALLBACK_ORIGIN = "https://mmc-mms.workers.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mms_database"
+database_id = "88823d38-da2f-4865-b0fc-67f1f99c6162"
+
+[[kv_namespaces]]
+binding = "MMS_CACHE"
+id = "1d3d4e6c12174b7797b356234794e7e5"
+
+# When R2 is enabled on the account, uncomment below to bind the backups bucket
+# [[r2_buckets]]
+# binding = "R2_BACKUPS"
+# bucket_name = "mms-backups"
+
+[triggers]
+# تشغّل الـ Worker كل 10 دقائق + مجدول النسخ الاحتياطي
+crons = ["*/10 * * * *", "0 */12 * * *"]
+
+# لتمكين KV للـ Rate Limit، أنشئ namespace وباعد ربطه هنا
+# [kv_namespaces]
+# binding = "RATE_LIMIT_KV"
+# id = "<KV_ID>"
+# preview_id = "<KV_PREVIEW_ID>"
+
+[observability]
+logs = { enabled = true }
