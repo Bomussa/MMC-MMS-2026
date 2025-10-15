@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code - MMC-MMS.com</title>
+    <script src="qr.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .url-display {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .url-display a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .url-display a:hover {
+            text-decoration: underline;
+        }
+
+        #qrcode {
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .info {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border-right: 4px solid #667eea;
+        }
+
+        .info h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .info ul {
+            list-style: none;
+            text-align: right;
+        }
+
+        .info li {
+            padding: 8px 0;
+            color: #4a5568;
+        }
+
+        .info li::before {
+            content: "✓ ";
+            color: #48bb78;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            .buttons {
+                display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            .subtitle {
+                font-size: 1.2rem;
+            }
+            .buttons {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏥 نظام إدارة الخدمات الطبية</h1>
+        <div class="subtitle">MMC-MMS.com</div>
+        
+        <div class="url-display">
+            <a href="https://mmc-mms.com" target="_blank" id="url-link">https://mmc-mms.com</a>
+        </div>
+
+        <div id="qrcode"></div>
+
+        <div class="info">
+            <h3>📱 مسح الباركود للوصول السريع</h3>
+            <ul>
+                <li>افتح كاميرا الهاتف</li>
+                <li>وجّه الكاميرا نحو الباركود</li>
+                <li>اضغط على الرابط الظاهر</li>
+                <li>استمتع بالخدمة!</li>
+            </ul>
+        </div>
+
+        <div class="buttons">
+            <button onclick="downloadQR()">💾 تحميل الباركود</button>
+            <button onclick="printPage()">🖨️ طباعة</button>
+            <button onclick="copyURL()">📋 نسخ الرابط</button>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 المركز الطبي العسكري - جميع الحقوق محفوظة</p>
+            <p>Military Medical Center - All Rights Reserved</p>
+        </div>
+    </div>
+
+    <script>
+        // Generate QR Code
+        const url = "https://mmc-mms.com";
+        
+        const qrcode = new QRCode(document.getElementById("qrcode"), {
+            text: url,
+            width: 300,
+            height: 300,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        // Download QR Code
+        function downloadQR() {
+            const canvas = document.querySelector('#qrcode canvas');
+            if (canvas) {
+                const link = document.createElement('a');
+                link.download = 'qr-mmc-mms-com.png';
+                link.href = canvas.toDataURL();
+                link.click();
+                
+                // Show success message
+                alert('✅ تم تحميل الباركود بنجاح!\nالملف: qr-mmc-mms-com.png');
+            }
+        }
+
+        // Print page
+        function printPage() {
+            window.print();
+        }
+
+        // Copy URL
+        function copyURL() {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('✅ تم نسخ الرابط!\n' + url);
+            }).catch(err => {
+                console.error('Error copying URL:', err);
+                // Fallback
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                alert('✅ تم نسخ الرابط!\n' + url);
+            });
+        }
+
+        // Update URL dynamically if needed
+        function updateURL(newUrl) {
+            document.getElementById('url-link').href = newUrl;
+            document.getElementById('url-link').textContent = newUrl;
+            document.getElementById('qrcode').innerHTML = '';
+            new QRCode(document.getElementById("qrcode"), {
+                text: newUrl,
+                width: 300,
+                height: 300,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        // Check if running on deployed domain
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            const actualURL = window.location.origin;
+            if (actualURL !== url) {
+                console.log('Running on:', actualURL);
+                // Optionally update to actual URL
+                // updateURL(actualURL);
+            }
+        }
+    </script>
+</body>
+</html>
