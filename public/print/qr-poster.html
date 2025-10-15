@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ملصق QR — MMC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #111827;
+            --muted: #374151;
+            --brand: #2563eb;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: Cairo, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial;
+        }
+
+        .page {
+            max-width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 18mm 14mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 18mm
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center
+        }
+
+        .title {
+            font-size: 22pt;
+            font-weight: 700
+        }
+
+        .subtitle {
+            font-size: 12pt;
+            color: var(--muted)
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14mm;
+            align-items: center
+        }
+
+        .card {
+            border: 1.2mm solid #111827;
+            border-radius: 6mm;
+            padding: 10mm;
+            display: grid;
+            place-items: center
+        }
+
+        #qr {
+            width: 120mm;
+            height: 120mm;
+            display: grid;
+            place-items: center
+        }
+
+        .cta {
+            font-size: 14pt
+        }
+
+        .link {
+            font-size: 12pt;
+            color: var(--brand)
+        }
+
+        .footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            color: var(--muted);
+            font-size: 10pt
+        }
+
+        .btns {
+            display: flex;
+            gap: 6mm
+        }
+
+        button {
+            background: var(--brand);
+            color: #fff;
+            border: none;
+            padding: 6mm 8mm;
+            border-radius: 4mm;
+            font-size: 12pt;
+            cursor: pointer
+        }
+
+        input[type=text] {
+            width: 100%;
+            font-size: 11pt;
+            padding: 4mm;
+            border: 1px solid #cbd5e1;
+            border-radius: 3mm
+        }
+
+        @media print {
+            .controls {
+                display: none
+            }
+
+            .page {
+                box-shadow: none
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="header">
+            <div>
+                <div class="title">افتح تطبيق MMC — المراجعين</div>
+                <div class="subtitle">وجّه كاميرا هاتفك إلى رمز QR لفتح التطبيق فورًا</div>
+            </div>
+            <div class="controls">
+                <div style="display:flex; gap:6mm; align-items:center">
+                    <input id="target" type="text" value="https://main.mmc-mms.pages.dev" aria-label="الرابط">
+                    <button id="update">تحديث الرمز</button>
+                    <button id="save">حفظ كصورة PNG</button>
+                </div>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card">
+                <div id="qr"></div>
+            </div>
+            <div>
+                <p class="cta">طريقة الاستخدام:</p>
+                <ol>
+                    <li>افتح كاميرا هاتفك.</li>
+                    <li>وجّه الكاميرا نحو الرمز إلى أن يظهر إشعار فتح الرابط.</li>
+                    <li>اضغط الإشعار للانتقال إلى التطبيق مباشرة.</li>
+                </ol>
+                <p class="link">الرابط: <span id="link">https://main.mmc-mms.pages.dev</span></p>
+                <p class="subtitle">نوصي بطباعة هذه الصفحة (A4) ووضعها في الاستقبال.</p>
+            </div>
+        </div>
+        <div class="footer">
+            <span>MMC Medical Center — 2027</span>
+            <div class="btns controls">
+                <button onclick="window.print()">طباعة</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-TNGL3dQ6tI7G3b1tqf7tWwXo0V+6WwZp5kQK2sG1eV8Xo3F1v1d0WzXv7q0b2kU6cGv8Y0Qm6m0JYgOa5x9Q0g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        const elQR = document.getElementById('qr');
+        const elTarget = document.getElementById('target');
+        const elLink = document.getElementById('link');
+        const updateBtn = document.getElementById('update');
+        const saveBtn = document.getElementById('save');
+        let qr;
+        function draw(url) {
+            elQR.innerHTML = '';
+            elLink.textContent = url;
+            qr = new QRCode(elQR, { text: url, width: 480, height: 480, colorDark: '#111827', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+        }
+        updateBtn.addEventListener('click', () => draw(elTarget.value.trim() || 'https://main.mmc-mms.pages.dev'));
+        draw(elTarget.value);
+        saveBtn.addEventListener('click', () => {
+            // QRCode library renders a <img> or <canvas> inside #qr; prefer canvas for quality
+            const img = elQR.querySelector('img');
+            const canvas = elQR.querySelector('canvas');
+            if (canvas) {
+                const a = document.createElement('a');
+                a.download = 'mmc-qr.png';
+                a.href = canvas.toDataURL('image/png');
+                a.click();
+            } else if (img && img.src) {
+                const a = document.createElement('a');
+                a.download = 'mmc-qr.png';
+                a.href = img.src;
+                a.click();
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>المركز الطبي العسكري — الواجهة الموحدة</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/theme/tokens.css" />
+  <link rel="stylesheet" href="/legacy.css" onerror="this.remove()" />
+  <style>
+    :root {
+      --radius: 12px;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--color-primary);
+      color: #fff;
+      padding: 14px 18px;
+    }
+
+    header .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header .brand .logo {
+      width: 32px;
+      height: 32px;
+      background: #fff;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    header .brand strong {
+      font-size: 16px;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 880px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 28px rgba(16, 24, 40, .08);
+      padding: 22px;
+    }
+
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+      margin: 0 0 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .row>label {
+      min-width: 140px;
+      color: #111827;
+    }
+
+    .row>input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .btn {
+      background: #1E5BAA;
+      color: #fff;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn.secondary {
+      background: #0f172a;
+    }
+
+    .btn.ghost {
+      background: #eef2ff;
+      color: #1E40AF;
+    }
+
+    .quick-links {
+      display: grid;
+      gap: 10px;
+    }
+
+    .quick-links a {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      color: #111827;
+      text-decoration: none;
+    }
+
+    .quick-links a small {
+      color: #6b7280;
+    }
+
+    .qr {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px dashed #c7d2fe;
+      padding: 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .qr img {
+      width: 96px;
+      height: 96px;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    footer {
+      padding: 10px 16px;
+      color: #6b7280;
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">
+      <img src="/img/logo.svg" alt="شعار الخدمات الطبية" class="logo" />
+      <strong>المركز الطبي العسكري — 2026</strong>
+    </div>
+  </header>
+  <main>
+    <div class="container">
+      <div class="grid">
+        <!-- بطاقة بيانات المراجع -->
+        <section class="card" role="region" aria-label="بيانات المراجع">
+          <h2>بيانات المراجع</h2>
+          <p class="muted">أدخل الأرقام المطلوبة لبدء الإجراءات.</p>
+          <div class="row">
+            <label for="pn">الرقم الشخصي</label>
+            <input id="pn" type="text" inputmode="numeric" placeholder="مثال: 29901234567890" />
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <label for="mn">الرقم العسكري</label>
+            <input id="mn" type="text" inputmode="numeric" placeholder="مثال: 123456" />
+          </div>
+          <div class="actions">
+            <button class="btn" id="saveBtn">متابعة</button>
+            <a class="btn secondary" href="/admin" id="adminLink">دخول الإدارة</a>
+            <a class="btn ghost" href="/reports">التقارير والفحوصات</a>
+          </div>
+          <div id="savedMsg" class="muted" style="display:none; margin-top:8px;">تم حفظ البيانات مؤقتًا على هذا الجهاز.
+          </div>
+        </section>
+
+        <!-- روابط سريعة + QR -->
+        <aside class="card" role="complementary" aria-label="روابط سريعة">
+          <h2>روابط سريعة</h2>
+          <div class="quick-links" style="margin-top:10px;">
+            <a href="/queues"><span>الطوابير الحية</span><small>/queues</small></a>
+            <a href="/reports/performance"><span>تقرير الأداء</span><small>/reports/performance</small></a>
+            <a href="/pinmap/today"><span>خريطة PIN لليوم</span><small>/pinmap/today</small></a>
+          </div>
+          <div class="qr" style="margin-top:14px;">
+            <img src="/img/qr-mmc.png" alt="رمز QR لفتح الواجهة" onerror="this.src='/img/logo.svg'" />
+            <div style="flex:1">
+              <div style="font-weight:600;">افتح على الهاتف</div>
+              <div class="muted">امسح الرمز أو زر: <a href="/qr.html">/qr.html</a></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+  <footer>
+    © جميع الحقوق محفوظة — المركز الطبي العسكري
+  </footer>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/offline/sw.js').catch(() => { })
+    }
+    const $ = (s) => document.querySelector(s)
+    const pn = $('#pn'), mn = $('#mn'), saveBtn = $('#saveBtn'), msg = $('#savedMsg')
+    try {
+      const lastPn = localStorage.getItem('mmc_pn') || ''
+      const lastMn = localStorage.getItem('mmc_mn') || ''
+      if (lastPn) pn.value = lastPn
+      if (lastMn) mn.value = lastMn
+    } catch { }
+    saveBtn?.addEventListener('click', () => {
+      try {
+        localStorage.setItem('mmc_pn', (pn?.value || '').trim())
+        localStorage.setItem('mmc_mn', (mn?.value || '').trim())
+        msg.style.display = 'block'
+        setTimeout(() => msg.style.display = 'none', 2500)
+      } catch { }
+    })
+  </script>
+  <script src="/augment.js" defer onerror="this.remove()"></script>
+  <script src="/js/notifications.js" defer onerror="this.remove()"></script>
+</body>
+
+</html>

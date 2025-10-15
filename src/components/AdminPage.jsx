@@ -21,26 +21,52 @@ import {
   Pause,
   Globe
 } from 'lucide-react'
-import { themes } from '../lib/utils'
-import { t } from '../lib/i18n'
 import api from '../lib/api'
+import { t } from '../lib/i18n'
+import { enhancedMedicalThemes } from '../lib/enhanced-themes'
 
-export function AdminPage({ onLogout, language, toggleLanguage }) {
+export function AdminPage({ onLogout, language, toggleLanguage, currentTheme, onThemeChange }) {
   const [currentView, setCurrentView] = useState('dashboard')
   const [stats, setStats] = useState(null)
   const [activePins, setActivePins] = useState([])
   const [loading, setLoading] = useState(false)
   const [adminCode] = useState('BOMUSSA14490')
+  const [queues, setQueues] = useState([])
+  const [recentReports, setRecentReports] = useState([])
+  const [lastPrimaryTheme, setLastPrimaryTheme] = useState(() => (currentTheme && currentTheme !== 'night-shift' ? currentTheme : 'medical-professional'))
 
   useEffect(() => {
     loadStats()
     loadActivePins()
+    loadQueues()
     const interval = setInterval(() => {
       loadStats()
       loadActivePins()
+      loadQueues()
     }, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  const loadQueues = async () => {
+    try {
+      const data = await api.getQueues()
+      if (data) {
+        if (Array.isArray(data.queues)) {
+          setQueues(data.queues)
+          return
+        }
+        if (Array.isArray(data)) {
+          setQueues(data)
+          return
+        }
+      }
+      setQueues([])
+    } catch (error) {
+      console.error('Failed to load queues:', error)
+      // Use fallback empty array
+      setQueues([])
+    }
+  }
 
   const loadStats = async () => {
     try {
@@ -65,6 +91,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
     try {
       await api.callNextPatient(queueType, adminCode)
       await loadStats()
+      await loadQueues()
     } catch (error) {
       console.error('Failed to call next patient:', error)
     } finally {
@@ -77,8 +104,22 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
     try {
       await api.pauseQueue(queueType, adminCode)
       await loadStats()
+      await loadQueues()
     } catch (error) {
       console.error('Failed to pause queue:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResumeClinic = async (clinicId) => {
+    setLoading(true)
+    try {
+      await api.resumeClinic(clinicId, adminCode)
+      await loadStats()
+      await loadQueues()
+    } catch (error) {
+      console.error('Failed to resume clinic:', error)
     } finally {
       setLoading(false)
     }
@@ -108,6 +149,76 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
     }
   }
 
+  // Reports helpers
+  const refreshReportHistory = async () => {
+    try {
+      const list = await api.getReportHistory(adminCode)
+      if (Array.isArray(list)) setRecentReports(list)
+    } catch (e) {
+      console.error('Failed to load report history:', e)
+    }
+  }
+
+  const handleGenerateReport = async (type, format) => {
+    setLoading(true)
+    try {
+      // Request server to generate report (metadata)
+      await api.generateReport(type, format, adminCode)
+      // Optionally immediately download
+      const { blob, contentType } = await api.downloadReport(type, format, adminCode)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const ext = format.toLowerCase()
+      a.href = url
+      a.download = `${type}-report.${ext}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      await refreshReportHistory()
+    } catch (e) {
+      console.error('Generate/Download report failed:', e)
+      alert(language === 'ar' ? 'فشل إنشاء أو تنزيل التقرير' : 'Failed to generate or download report')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePrintReport = async (type, format = 'pdf') => {
+    try {
+      const { blob } = await api.downloadReport(type, format, adminCode)
+      const url = URL.createObjectURL(blob)
+      const w = window.open(url, '_blank')
+      if (w) {
+        w.onload = () => w.print()
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch (e) {
+      console.error('Print report failed:', e)
+      alert(language === 'ar' ? 'تعذر طباعة التقرير' : 'Unable to print report')
+    }
+  }
+
+  useEffect(() => {
+    if (currentTheme && currentTheme !== 'night-shift') {
+      setLastPrimaryTheme(currentTheme)
+    }
+  }, [currentTheme])
+
+  const nightModeActive = currentTheme === 'night-shift'
+
+  const handleNightShiftToggle = () => {
+    if (!onThemeChange) return
+    const nextTheme = nightModeActive ? lastPrimaryTheme : 'night-shift'
+    onThemeChange(nextTheme)
+  }
+
+  const handleLanguageSwitch = () => {
+    if (toggleLanguage) {
+      toggleLanguage()
+    }
+  }
+
   const renderSidebar = () => (
     <div className="w-64 bg-gray-800/50 border-r border-gray-700 p-4">
       <div className="flex items-center gap-3 mb-8">
@@ -115,8 +226,8 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           <span className="text-white font-bold">⚕️</span>
         </div>
         <div>
-          <h2 className="text-white font-semibold">Admin Dashboard</h2>
-          <p className="text-gray-400 text-sm">Welcome admin</p>
+          <h2 className="text-white font-semibold">{language === 'ar' ? t('dashboard', 'ar') : t('dashboard', 'en')}</h2>
+          <p className="text-gray-400 text-sm">{language === 'ar' ? 'مرحبًا أيها المشرف' : 'Welcome admin'}</p>
         </div>
       </div>
 
@@ -127,7 +238,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('dashboard')}
         >
           <BarChart3 className="icon icon-md me-3" />
-          Dashboard
+          {language === 'ar' ? 'الرئيسية' : 'Overview'}
         </Button>
         <Button
           variant={currentView === 'enhanced' ? 'secondary' : 'ghost'}
@@ -135,7 +246,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('enhanced')}
         >
           <Activity className="icon icon-md me-3" />
-          لوحة التحكم المحسنة
+          {language === 'ar' ? 'لوحة التحكم المحسّنة' : 'Enhanced Dashboard'}
         </Button>
         <Button
           variant={currentView === 'queues' ? 'secondary' : 'ghost'}
@@ -143,7 +254,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('queues')}
         >
           <Users className="icon icon-md me-3" />
-          Queue Management
+          {language === 'ar' ? t('queueManagement', 'ar') : t('queueManagement', 'en')}
         </Button>
         <Button
           variant={currentView === 'pins' ? 'secondary' : 'ghost'}
@@ -151,7 +262,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('pins')}
         >
           <Lock className="icon icon-md me-3" />
-          PIN Management
+          {language === 'ar' ? t('pinManagement', 'ar') : t('pinManagement', 'en')}
         </Button>
         <Button
           variant={currentView === 'reports' ? 'secondary' : 'ghost'}
@@ -159,7 +270,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('reports')}
         >
           <FileText className="icon icon-md me-3" />
-          Reports
+          {language === 'ar' ? t('reports', 'ar') : t('reports', 'en')}
         </Button>
         <Button
           variant={currentView === 'clinics' ? 'secondary' : 'ghost'}
@@ -167,7 +278,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('clinics')}
         >
           <Users className="icon icon-md me-3" />
-          تكوين العيادات
+          {language === 'ar' ? 'تكوين العيادات' : 'Clinics Configuration'}
         </Button>
         <Button
           variant={currentView === 'settings' ? 'secondary' : 'ghost'}
@@ -175,7 +286,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           onClick={() => setCurrentView('settings')}
         >
           <Settings className="icon icon-md me-3" />
-          Settings
+          {language === 'ar' ? t('settings', 'ar') : t('settings', 'en')}
         </Button>
       </nav>
     </div>
@@ -184,7 +295,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
   const renderDashboard = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-white">{language === 'ar' ? 'لوحة المتابعة' : 'Dashboard'}</h1>
         <Button variant="outline" onClick={loadStats} disabled={loading}>
           <RefreshCw className="icon icon-md me-2" />
           تحديث
@@ -198,7 +309,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">إجمالي المراجعين</p>
-                <p className="text-3xl font-bold text-white">{stats?.totalPatients || 156}</p>
+                <p className="text-3xl font-bold text-white">{stats?.totalPatients || 0}</p>
               </div>
               <Users className="icon icon-xl text-blue-400" />
             </div>
@@ -210,7 +321,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">الطوابير النشطة</p>
-                <p className="text-3xl font-bold text-white">{stats?.totalWaiting || 8}</p>
+                <p className="text-3xl font-bold text-white">{stats?.totalWaiting || 0}</p>
               </div>
               <Activity className="icon icon-xl text-green-400" />
             </div>
@@ -222,7 +333,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">الفحوص المكتملة</p>
-                <p className="text-3xl font-bold text-white">{stats?.totalCompleted || 89}</p>
+                <p className="text-3xl font-bold text-white">{stats?.totalCompleted || 0}</p>
               </div>
               <CheckCircle className="icon icon-xl text-purple-400" />
             </div>
@@ -234,7 +345,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">متوسط الانتظار</p>
-                <p className="text-3xl font-bold text-white">12.5</p>
+                <p className="text-3xl font-bold text-white">{stats?.avgWaitTime || 0}</p>
                 <p className="text-gray-400 text-sm">دقيقة</p>
               </div>
               <Clock className="icon icon-xl text-yellow-400" />
@@ -249,25 +360,26 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           <CardTitle className="text-white">حالة الطوابير الحية</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {[
-            { name: 'المختبر', current: 15, waiting: 8, avgTime: '8.5 دقيقة' },
-            { name: 'العيون', current: 23, waiting: 12, avgTime: '12.3 دقيقة' },
-            { name: 'الباطنية', current: 8, waiting: 5, avgTime: '15.2 دقيقة' },
-            { name: 'الأنف والأذن', current: 12, waiting: 3, avgTime: '10.1 دقيقة' },
-            { name: 'النفسية', current: 5, waiting: 2, avgTime: '20.5 دقيقة' },
-            { name: 'الأسنان', current: 18, waiting: 7, avgTime: '9.8 دقيقة' }
-          ].map((queue, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
-              <div>
-                <h3 className="text-white font-semibold">{queue.name}</h3>
-                <p className="text-gray-400 text-sm">الرقم الحالي: {queue.current} | في الانتظار: {queue.waiting}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-white font-semibold">{queue.avgTime}</p>
-                <p className="text-gray-400 text-sm">متوسط الوقت</p>
-              </div>
+          {queues.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              {language === 'ar' ? 'لا توجد طوابير نشطة' : 'No active queues'}
             </div>
-          ))}
+          ) : (
+            queues.map((queue, index) => (
+              <div key={queue.id || index} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                <div>
+                  <h3 className="text-white font-semibold">{queue.name || queue.nameAr}</h3>
+                  <p className="text-gray-400 text-sm">
+                    الرقم الحالي: {queue.current || 0} | في الانتظار: {queue.waiting || 0}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-semibold">{queue.avgTime ? `${queue.avgTime} دقيقة` : '-'}</p>
+                  <p className="text-gray-400 text-sm">متوسط الوقت</p>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>
@@ -276,7 +388,7 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
   const renderQueues = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">إدارة الطوابير</h1>
+        <h1 className="text-2xl font-bold text-white">إدارة العيادات والمسارات</h1>
         <Button variant="outline" onClick={loadStats}>
           <RefreshCw className="icon icon-md me-2" />
           تحديث
@@ -284,55 +396,67 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
       </div>
 
       <div className="space-y-4">
-        {[
-          { id: 'lab', name: 'المختبر', current: 15, waiting: 8, avgTime: 8.5 },
-          { id: 'ophthalmology', name: 'العيون', current: 23, waiting: 12, avgTime: 12.3 },
-          { id: 'internal', name: 'الباطنية', current: 8, waiting: 5, avgTime: 15.2 },
-          { id: 'ent', name: 'الأنف والأذن', current: 12, waiting: 3, avgTime: 10.1 }
-        ].map((queue) => (
-          <Card key={queue.id} className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold text-lg mb-2">{queue.name}</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-2xl font-bold text-white">{queue.current}</p>
-                      <p className="text-gray-400 text-sm">الرقم الحالي</p>
+        {queues.length === 0 ? (
+          <div className="text-center text-gray-400 py-8">
+            {language === 'ar' ? 'لا توجد عيادات للإدارة' : 'No clinics to manage'}
+          </div>
+        ) : (
+          queues.map((queue) => (
+            <Card key={queue.id} className="bg-gray-800/50 border-gray-700">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold text-lg mb-2">{queue.name || queue.nameAr}</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-2xl font-bold text-white">{queue.current || 0}</p>
+                        <p className="text-gray-400 text-sm">رقم الدور الحالي</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-yellow-400">{queue.waiting || 0}</p>
+                        <p className="text-gray-400 text-sm">عدد المنتظرين</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-white">{queue.avgTime || 0}</p>
+                        <p className="text-gray-400 text-sm">متوسط الوقت (دقيقة)</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-yellow-400">{queue.waiting}</p>
-                      <p className="text-gray-400 text-sm">في الانتظار</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-white">{queue.avgTime}</p>
-                      <p className="text-gray-400 text-sm">متوسط الوقت (دقيقة)</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCallNext(queue.id)}
+                      disabled={loading || !queue.waiting}
+                      className="border-yellow-500 text-yellow-400 hover:bg-yellow-500/10"
+                    >
+                      نداء المراجع التالي
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="gradientSecondary"
+                        size="sm"
+                        onClick={() => handlePauseQueue(queue.id)}
+                        disabled={loading}
+                      >
+                        إيقاف مؤقت للعيادة
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResumeClinic(queue.id)}
+                        disabled={loading}
+                        className="border-green-500 text-green-400"
+                      >
+                        استئناف العيادة
+                      </Button>
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCallNext(queue.id)}
-                    disabled={loading}
-                    className="border-yellow-500 text-yellow-400 hover:bg-yellow-500/10"
-                  >
-                    تعديل
-                  </Button>
-                  <Button
-                    variant="gradientSecondary"
-                    size="sm"
-                    onClick={() => handlePauseQueue(queue.id)}
-                    disabled={loading}
-                  >
-                    إيقاف مؤقت
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   )
@@ -355,19 +479,19 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
       <div className="grid grid-cols-3 gap-6">
         <Card className="bg-gray-800/50 border-gray-700">
           <CardContent className="p-6 text-center">
-            <p className="text-3xl font-bold text-white">20</p>
+            <p className="text-3xl font-bold text-white">{activePins.length || 0}</p>
             <p className="text-gray-400">أكواد نشطة</p>
           </CardContent>
         </Card>
         <Card className="bg-gray-800/50 border-gray-700">
           <CardContent className="p-6 text-center">
-            <p className="text-3xl font-bold text-white">11</p>
+            <p className="text-3xl font-bold text-white">{activePins.filter(p => p.status === 'used').length || 0}</p>
             <p className="text-gray-400">مستخدمة</p>
           </CardContent>
         </Card>
         <Card className="bg-gray-800/50 border-gray-700">
           <CardContent className="p-6 text-center">
-            <p className="text-3xl font-bold text-white">79</p>
+            <p className="text-3xl font-bold text-white">{activePins.filter(p => p.status === 'active').length || 0}</p>
             <p className="text-gray-400">متاحة</p>
           </CardContent>
         </Card>
@@ -379,37 +503,33 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           <CardTitle className="text-white">الأكواد النشطة</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[
-            { id: 1, code: 'DEN', station: 'نشط', status: 'active' },
-            { id: 2, code: 'OPH', station: 'مستخدم', status: 'used' },
-            { id: 3, code: 'LAB', station: 'مستخدم', status: 'used' },
-            { id: 4, code: 'LAB', station: 'مستخدم', status: 'used' },
-            { id: 5, code: 'DEN', station: 'نشط', status: 'active' },
-            { id: 6, code: 'PSY', station: 'مستخدم', status: 'used' }
-          ].map((pin) => (
-            <div key={pin.id} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="text-2xl font-bold text-white">0{pin.id}</div>
-                <div>
-                  <p className="text-white font-semibold">{pin.code}</p>
-                  <p className="text-gray-400 text-sm">{pin.station}</p>
+          {activePins.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              {language === 'ar' ? 'لا توجد أكواد نشطة' : 'No active PINs'}
+            </div>
+          ) : (
+            activePins.map((pin) => (
+              <div key={pin.id} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="text-2xl font-bold text-white">{pin.pin || pin.id}</div>
+                  <div>
+                    <p className="text-white font-semibold">{pin.clinicId || pin.code || 'N/A'}</p>
+                    <p className="text-gray-400 text-sm">{pin.status === 'active' ? 'نشط' : 'مستخدم'}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="gradientSecondary"
+                    size="sm"
+                    onClick={() => handleDeactivatePin(pin.id)}
+                    disabled={loading}
+                  >
+                    إلغاء تفعيل
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="border-yellow-500 text-yellow-400">
-                  إعادة تعيين
-                </Button>
-                <Button
-                  variant="gradientSecondary"
-                  size="sm"
-                  onClick={() => handleDeactivatePin(pin.id)}
-                  disabled={loading}
-                >
-                  إلغاء تفعيل
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </CardContent>
       </Card>
     </div>
@@ -431,14 +551,24 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <CardTitle className="text-white">تقارير يومية</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="gradient" className="w-full justify-start">
-              <FileText className="w-4 h-4 mr-2" />
-              يومي PDF تقرير
+            <Button variant="gradient" disabled={loading} onClick={() => handleGenerateReport('daily', 'pdf')} className="w-full justify-start gap-2">
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <span>تقرير يومي PDF</span>
             </Button>
-            <Button variant="gradientSecondary" className="w-full justify-start">
-              <FileText className="w-4 h-4 mr-2" />
-              يومي Excel تقرير
+            <Button variant="gradientSecondary" disabled={loading} onClick={() => handleGenerateReport('daily', 'xlsx')} className="w-full justify-start gap-2">
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <span>تقرير يومي Excel</span>
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => handlePrintReport('daily', 'pdf')} className="gap-2">
+                <Download className="w-4 h-4" />
+                <span>طباعة PDF</span>
+              </Button>
+              <Button variant="outline" onClick={refreshReportHistory} className="gap-2">
+                <RefreshCw className="w-4 h-4" />
+                <span>تحديث السجل</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -447,13 +577,13 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
             <CardTitle className="text-white">تقارير أسبوعية</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button variant="gradient" className="w-full justify-start">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              تقرير إجمالي أسبوعي
+            <Button variant="gradient" disabled={loading} onClick={() => handleGenerateReport('weekly-summary', 'pdf')} className="w-full justify-start gap-2">
+              <BarChart3 className="w-4 h-4 flex-shrink-0" />
+              <span>تقرير إجمالي أسبوعي</span>
             </Button>
-            <Button variant="gradientSecondary" className="w-full justify-start">
-              <Activity className="w-4 h-4 mr-2" />
-              تقرير الأداء الأسبوعي
+            <Button variant="gradientSecondary" disabled={loading} onClick={() => handleGenerateReport('weekly-performance', 'pdf')} className="w-full justify-start gap-2">
+              <Activity className="w-4 h-4 flex-shrink-0" />
+              <span>تقرير الأداء الأسبوعي</span>
             </Button>
           </CardContent>
         </Card>
@@ -465,95 +595,108 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
           <CardTitle className="text-white">التقارير الحديثة</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {[
-            { name: 'تقرير يومي - 01-10-2024.pdf', size: '245 KB', date: '2024-10-01 09:15' },
-            { name: 'تقرير الأداء الأسبوعي.xlsx', size: '156 KB', date: '2024-09-30 17:30' },
-            { name: 'تقرير الطوابير اليومي.pdf', size: '189 KB', date: '2024-09-30 08:45' }
-          ].map((report, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-white font-medium">{report.name}</p>
-                  <p className="text-gray-400 text-sm">{report.size} - {report.date}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" className="border-yellow-500 text-yellow-400">
-                <Download className="w-4 h-4 mr-2" />
-                تحميل
-              </Button>
+          {recentReports.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              {language === 'ar' ? 'لا توجد تقارير' : 'No reports available'}
             </div>
-          ))}
+          ) : (
+            recentReports.map((report, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium truncate">{report.name}</p>
+                    <p className="text-gray-400 text-sm">{report.size} - {report.date}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handlePrintReport('daily', 'pdf')} className="border-yellow-500 text-yellow-400 flex-shrink-0 gap-2">
+                  <Download className="w-4 h-4" />
+                  <span>تحميل</span>
+                </Button>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>
   )
 
-  const renderSettings = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">إعدادات النظام</h1>
-        <Button variant="outline" className="border-yellow-500 text-yellow-400">
-          خط الإنتاجات
-        </Button>
-      </div>
+  const renderSettings = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">إعدادات النظام</h1>
+        </div>
 
-      {/* General Settings */}
-      <Card className="bg-gray-800/50 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">إعدادات عامة</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-white">التحديث التلقائي</span>
-            <div className="w-12 h-6 bg-green-500 rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+        {/* General Settings */}
+        <Card className="bg-gray-800/50 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">إعدادات عامة</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-white">التحديث التلقائي</span>
+              <div className="w-12 h-6 bg-green-500 rounded-full relative">
+                <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-white">تفعيل الصوت</span>
-            <div className="w-12 h-6 bg-green-500 rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-white">تفعيل الصوت</span>
+              <div className="w-12 h-6 bg-green-500 rounded-full relative">
+                <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-white">الإشعارات</span>
-            <div className="w-12 h-6 bg-green-500 rounded-full relative">
-              <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+            <div className="flex items-center justify-between">
+              <span className="text-white">الإشعارات</span>
+              <div className="w-12 h-6 bg-green-500 rounded-full relative">
+                <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Theme Settings */}
-      <Card className="bg-gray-800/50 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white">إعدادات المظهر</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {themes.map((theme) => (
-              <div
-                key={theme.id}
-                className="p-4 border border-gray-600 rounded-lg cursor-pointer hover:border-yellow-500 transition-colors"
-              >
-                <div className="flex gap-2 mb-2">
-                  {theme.colors.map((color, index) => (
+        {/* Theme Settings */}
+        <Card className="bg-gray-800/50 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white">إعدادات المظهر</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {enhancedMedicalThemes.map((theme) => (
+                <div
+                  key={theme.id}
+                  onClick={() => onThemeChange && onThemeChange(theme.id)}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${currentTheme === theme.id
+                    ? 'border-yellow-500 bg-gray-700/50'
+                    : 'border-gray-600 hover:border-yellow-500'
+                    }`}
+                >
+                  <div className="flex gap-2 mb-2">
                     <div
-                      key={index}
                       className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: color }}
+                      style={{ backgroundColor: theme.colors.primary }}
                     />
-                  ))}
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: theme.colors.secondary }}
+                    />
+                    <div
+                      className="w-4 h-4 rounded-full"
+                      style={{ backgroundColor: theme.colors.accent }}
+                    />
+                  </div>
+                  <p className="text-white font-medium text-sm">{theme.nameAr || theme.name}</p>
+                  {currentTheme === theme.id && (
+                    <p className="text-green-400 text-xs mt-1">✓ نشط</p>
+                  )}
                 </div>
-                <p className="text-white font-medium">{theme.name}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -562,28 +705,43 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src="/logo.jpeg" alt="قيادة الخدمات الطبية" className="w-12 h-12 rounded-full" />
+              <img src="/logo.jpeg" alt="قيادة الخدمات الطبية" className="w-12 h-12 rounded-full object-cover object-center" />
               <div className="text-right">
-                <h1 className="text-white font-semibold text-lg">قيادة الخدمات الطبية</h1>
-                <p className="text-gray-400 text-sm">Medical Services</p>
+                <h1 className="text-white font-semibold text-lg">{language === 'ar' ? 'قيادة الخدمات الطبية' : 'Medical Services Command'}</h1>
+                <p className="text-gray-400 text-sm">{language === 'ar' ? 'الخدمات الطبية' : 'Medical Services'}</p>
               </div>
             </div>
           </div>
 
           <div className="text-center">
-            <h2 className="text-white font-medium">Welcome to the Medical Committee System</h2>
+            <h2 className="text-white font-medium">{t('welcome', language)}</h2>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white"
+              onClick={() => setCurrentView('settings')}
+            >
               <Settings className="icon icon-md me-2" />
-              Admin
+              {language === 'ar' ? 'إعدادات الإدارة' : 'Admin Settings'}
             </Button>
-            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
-              English 🇺🇸
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white"
+              onClick={handleLanguageSwitch}
+            >
+              {language === 'ar' ? 'English 🇺🇸' : 'العربية 🇸🇦'}
             </Button>
-            <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
-              Night Shift
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-gray-300 hover:text-white"
+              onClick={handleNightShiftToggle}
+            >
+              {nightModeActive ? (language === 'ar' ? 'وضع النهار' : 'Day Mode') : (language === 'ar' ? 'وضع المناوبة الليلية' : 'Night Shift')}
             </Button>
           </div>
         </div>
@@ -597,18 +755,23 @@ export function AdminPage({ onLogout, language, toggleLanguage }) {
               <span className="text-white font-bold">⚕️</span>
             </div>
             <div>
-              <h2 className="text-white font-semibold">Admin Dashboard</h2>
-              <p className="text-gray-400 text-sm">Welcome admin</p>
+              <h2 className="text-white font-semibold">{language === 'ar' ? 'غرفة القيادة الإدارية' : 'Admin Control Hub'}</h2>
+              <p className="text-gray-400 text-sm">{language === 'ar' ? 'مرحبا بعودتك' : 'Welcome back'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="border-yellow-500 text-yellow-400">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-yellow-500 text-yellow-400"
+              onClick={() => setCurrentView('dashboard')}
+            >
               <Home className="icon icon-md me-2" />
-              Home
+              {language === 'ar' ? 'الرئيسية' : 'Home'}
             </Button>
             <Button variant="gradientSecondary" size="sm" onClick={onLogout}>
               <LogOut className="icon icon-md me-2" />
-              Logout
+              {language === 'ar' ? 'تسجيل الخروج' : 'Logout'}
             </Button>
           </div>
         </div>

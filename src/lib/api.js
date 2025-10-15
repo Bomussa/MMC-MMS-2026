@@ -10,6 +10,14 @@ function resolveApiBases() {
   // نفس الأصل يعمل في الإنتاج أو عند وجود وكيل proxy
   bases.push(window.location.origin)
 
+  // في حال الاستضافة على Pages (pages.dev)، استخدم نطاق العامل الإنتاجي مباشرة
+  try {
+    const host = window.location.host || ''
+    if (/\.pages\.dev$/i.test(host)) {
+      bases.push('https://mmc-mms.com')
+    }
+  } catch { }
+
   // إزالة التكرارات
   return Array.from(new Set(bases))
 }
@@ -55,6 +63,33 @@ class ApiService {
 
     console.error('API Error (all bases failed):', lastError)
     throw lastError || new Error('تعذر الوصول إلى الخادم')
+  }
+
+  // تحميل ثنائي (Blob) لبعض التقارير/الملفات
+  async requestBinary(endpoint, options = {}) {
+    const config = {
+      // لا نحدد Content-Type هنا للسماح للسيرفر بإرجاع الملف المناسب
+      ...options
+    }
+
+    let lastError = null
+    for (const base of API_BASES) {
+      const url = `${base}${endpoint}`
+      try {
+        const response = await fetch(url, config)
+        if (!response.ok) {
+          lastError = new Error(`HTTP ${response.status}`)
+          continue
+        }
+        const blob = await response.blob()
+        return { blob, contentType: response.headers.get('content-type') || 'application/octet-stream' }
+      } catch (err) {
+        lastError = err
+        continue
+      }
+    }
+    console.error('API Binary Error (all bases failed):', lastError)
+    throw lastError || new Error('تعذر تنزيل الملف')
   }
 
   // رجوع محلي دون خادم لتجربة التدفق الأساسي عند غياب الـ API
@@ -167,12 +202,19 @@ class ApiService {
   }
 
   async pauseQueue(queueType, adminCode) {
-    return this.request(`/api/admin/pause/${queueType}`, {
+    return this.request(`/api/admin/pause/${encodeURIComponent(queueType)}`, {
       method: 'POST',
       body: JSON.stringify({ adminCode })
     })
   }
 
+
+  async resumeClinic(queueType, adminCode) {
+    return this.request(`/api/admin/resume/${encodeURIComponent(queueType)}`, {
+      method: 'POST',
+      body: JSON.stringify({ adminCode })
+    })
+  }
   async resetSystem(adminCode) {
     return this.request('/api/admin/reset', {
       method: 'POST',
@@ -184,7 +226,7 @@ class ApiService {
   async generatePIN(stationId, adminCode) {
     return this.request('/api/pin/issue', {
       method: 'POST',
-      body: JSON.stringify({ clinicId: stationId })
+      body: JSON.stringify({ clinicId: stationId, adminCode })
     })
   }
 
@@ -196,7 +238,7 @@ class ApiService {
   }
 
   async getActivePINs(adminCode) {
-    return this.request(`/api/admin/pins?adminCode=${adminCode}`)
+    return this.request(`/api/admin/pins?adminCode=${encodeURIComponent(adminCode || '')}`)
   }
 
   // Enhanced Admin APIs
@@ -233,30 +275,42 @@ class ApiService {
   }
 
   async getReportHistory(adminCode) {
-    return this.request(`/api/admin/reports?adminCode=${adminCode}`)
+    return this.request(`/api/admin/reports?adminCode=${encodeURIComponent(adminCode || '')}`)
+  }
+
+  // تنزيل التقرير كملف جاهز
+  async downloadReport(type, format, adminCode) {
+    // يفضّل وجود مسار تنزيل مباشر يعيد ملفًا ثنائيًا
+    // مثال: GET /api/admin/report/download?type=daily&format=pdf&adminCode=...
+    const qs = new URLSearchParams({
+      type: type || '',
+      format: format || '',
+      adminCode: adminCode || ''
+    }).toString()
+    return this.requestBinary(`/api/admin/report/download?${qs}`)
   }
 
   // WebSocket connection
   connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}`
-    
+
     const ws = new WebSocket(wsUrl)
-    
+
     ws.onopen = () => {
       console.log('WebSocket connected')
     }
-    
+
     ws.onclose = () => {
       console.log('WebSocket disconnected')
       // Reconnect after 3 seconds
       setTimeout(() => this.connectWebSocket(), 3000)
     }
-    
+
     ws.onerror = (error) => {
       console.error('WebSocket error:', error)
     }
-    
+
     return ws
   }
 }

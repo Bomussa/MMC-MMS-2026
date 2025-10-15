@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>MMC — QR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: Cairo, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
+            margin: 0;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            background: #0b132b;
+            color: #eef
+        }
+
+        .card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+            max-width: 520px;
+            width: 92%
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0 0 8px
+        }
+
+        p {
+            margin: 0 0 16px;
+            color: #cfd8e3
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin: 8px 0
+        }
+
+        input {
+            flex: 1;
+            background: #0b1220;
+            color: #eaf;
+            border: 1px solid #2a3550;
+            border-radius: 10px;
+            padding: 10px 12px
+        }
+
+        button {
+            background: #2563eb;
+            border: none;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        button:hover {
+            background: #1d4ed8
+        }
+
+        #qr {
+            display: grid;
+            place-items: center;
+            padding: 16px;
+            background: #0b1220;
+            border-radius: 12px;
+            border: 1px solid #1f2937
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #9fb3c8
+        }
+
+        a {
+            color: #93c5fd
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1>رمز QR لفتح التطبيق</h1>
+        <p>وجّه كاميرا هاتفك إلى رمز QR التالي لفتح واجهة المراجعين فورًا.</p>
+        <div class="row">
+            <input id="target" type="text" value="https://main.mmc-mms.pages.dev" aria-label="Target URL">
+            <button id="gen">تحديث</button>
+        </div>
+        <div id="qr"></div>
+        <p class="hint">الرابط الحالي: <a id="href" href="https://main.mmc-mms.pages.dev" target="_blank"
+                rel="noopener">https://main.mmc-mms.pages.dev</a></p>
+    </div>
+    <!-- QRCode library via CDN (qrcodejs, MIT) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+        integrity="sha512-TNGL3dQ6tI7G3b1tqf7tWwXo0V+6WwZp5kQK2sG1eV8Xo3F1v1d0WzXv7q0b2kU6cGv8Y0Qm6m0JYgOa5x9Q0g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        const input = document.getElementById('target');
+        const btn = document.getElementById('gen');
+        const qrBox = document.getElementById('qr');
+        const href = document.getElementById('href');
+        function drawQR(url) {
+            qrBox.innerHTML = '';
+            href.textContent = url; href.href = url;
+            new QRCode(qrBox, { text: url, width: 220, height: 220, colorDark: '#eaf', colorLight: '#0b1220', correctLevel: QRCode.CorrectLevel.H });
+        }
+        drawQR(input.value);
+        btn.addEventListener('click', () => drawQR(input.value.trim() || 'https://main.mmc-mms.pages.dev'));
+    </script>
+</body>
+
+</html>

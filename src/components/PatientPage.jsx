@@ -33,13 +33,36 @@ export function PatientPage({ patientData, onLogout, language, toggleLanguage })
   const handleClinicEnter = async (station) => {
     try {
       setLoading(true)
-      const res = await api.enterClinic(patientData.id, station.id)
+      // Use the correct API endpoint for entering queue
+      const res = await api.request('/api/queue/enter', {
+        method: 'POST',
+        body: JSON.stringify({
+          visitId: patientData.id,
+          clinicId: station.id,
+          queueType: patientData.queueType
+        })
+      })
       // The backend returns { clinicId, ticket, verified }
-      const ticket = res?.ticket
-      setActiveTicket({ clinicId: station.id, ticket })
-      setStations(prev => prev.map(s => s.id === station.id ? { ...s, current: ticket, yourNumber: ticket, ahead: 0, status: 'ready', isEntered: true } : s))
+      const ticket = res?.ticket || res?.queueNumber
+      if (ticket) {
+        setActiveTicket({ clinicId: station.id, ticket })
+        setStations(prev => prev.map(s => s.id === station.id ? {
+          ...s,
+          current: ticket,
+          yourNumber: ticket,
+          ahead: 0,
+          status: 'ready',
+          isEntered: true
+        } : s))
+
+        // Show success notification
+        const msg = language === 'ar' ? `تم الدخول - رقمك ${ticket}` : `Entered - Your number ${ticket}`
+        alert(msg)
+      }
     } catch (e) {
       console.error('Enter clinic failed', e)
+      const msg = language === 'ar' ? 'فشل الدخول للعيادة' : 'Failed to enter clinic'
+      alert(msg)
     } finally {
       setLoading(false)
     }
@@ -49,6 +72,7 @@ export function PatientPage({ patientData, onLogout, language, toggleLanguage })
     try {
       setLoading(true)
       const ticket = activeTicket?.clinicId === station.id ? activeTicket.ticket : station.yourNumber
+
       // Require PIN to match the real ticket number only if this station requires PIN
       if (station.requiresPinExit) {
         if (!pinInput || String(pinInput).trim() !== String(ticket)) {
@@ -56,7 +80,17 @@ export function PatientPage({ patientData, onLogout, language, toggleLanguage })
           return
         }
       }
-      await api.completeClinic(station.id, Number(ticket))
+
+      // Use the correct API endpoint for completing queue
+      await api.request('/api/queue/complete', {
+        method: 'POST',
+        body: JSON.stringify({
+          clinicId: station.id,
+          ticket: Number(ticket),
+          queueType: patientData.queueType
+        })
+      })
+
       // Mark station completed and move to next
       setStations(prev => {
         const idx = prev.findIndex(s => s.id === station.id)
@@ -68,10 +102,17 @@ export function PatientPage({ patientData, onLogout, language, toggleLanguage })
         }
         return prev.map(s => s.id === station.id ? { ...s, status: 'completed', exitTime: new Date() } : s)
       })
+
       setPinInput('')
       setSelectedStation(null)
+
+      // Show success notification
+      const msg = language === 'ar' ? 'تم الخروج بنجاح' : 'Successfully exited'
+      alert(msg)
     } catch (e) {
       console.error('Complete clinic failed', e)
+      const msg = language === 'ar' ? 'فشل الخروج من العيادة' : 'Failed to exit clinic'
+      alert(msg)
     } finally {
       setLoading(false)
     }
