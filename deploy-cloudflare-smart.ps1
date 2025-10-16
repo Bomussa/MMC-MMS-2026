@@ -142,7 +142,7 @@ Write-Step "🌐 المرحلة 4: إعداد Cloudflare Pages..." "Cyan"
 # تعريف الثوابت
 $PROJECT_NAME = "mmc-mms"
 $DOMAIN = "mmc-mms.com"
-$REPO = "Bomussa/MMC-MMS-2026"
+$REPO = "Bomussa/2027"
 
 Write-Info "📋 المعلومات:"
 Write-Host "   اسم المشروع: $PROJECT_NAME" -ForegroundColor Gray
