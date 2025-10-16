@@ -68,5 +68,22 @@ routeRouter.get('/:visitId', async (req: Request, res: Response) => {
     return res.status(404).json({ ok: false, error: 'ROUTE_NOT_FOUND' })
   }
 
-  res.json({ ok: true, route: routeFile })
+  // Apply ZFD validation to each step with assigned ticket
+  const routeWithValidation = { ...routeFile }
+  for (const step of routeWithValidation.route) {
+    if (step.assigned) {
+      const check = await validateBeforeDisplayTicket(
+        String(step.clinicId),
+        String(visitId),
+        step.assigned.ticket,
+        step.assigned.issuedAt,
+      )
+      step.status = check.status
+      if (check.reason) {
+        step.validationReason = check.reason
+      }
+    }
+  }
+
+  res.json({ ok: true, route: routeWithValidation })
 })

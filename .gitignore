@@ -9,3 +9,6 @@ dist_clean/
 logs/
 logs/screenshots/
 backups/
+
+# Cloudflare credentials
+CLOUDFLARE_CREDENTIALS.md

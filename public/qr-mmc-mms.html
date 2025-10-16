@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -144,10 +145,12 @@
             body {
                 background: white;
             }
+
             .container {
                 box-shadow: none;
                 padding: 20px;
             }
+
             .buttons {
                 display: none;
             }
@@ -157,26 +160,31 @@
             .container {
                 padding: 20px;
             }
+
             h1 {
                 font-size: 1.5rem;
             }
+
             .subtitle {
                 font-size: 1.2rem;
             }
+
             .buttons {
                 flex-direction: column;
             }
+
             button {
                 width: 100%;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>🏥 نظام إدارة الخدمات الطبية</h1>
         <div class="subtitle">MMC-MMS.com</div>
-        
+
         <div class="url-display">
             <a href="https://mmc-mms.com" target="_blank" id="url-link">https://mmc-mms.com</a>
         </div>
@@ -208,7 +216,7 @@
     <script>
         // Generate QR Code
         const url = "https://mmc-mms.com";
-        
+
         const qrcode = new QRCode(document.getElementById("qrcode"), {
             text: url,
             width: 300,
@@ -226,7 +234,7 @@
                 link.download = 'qr-mmc-mms-com.png';
                 link.href = canvas.toDataURL();
                 link.click();
-                
+
                 // Show success message
                 alert('✅ تم تحميل الباركود بنجاح!\nالملف: qr-mmc-mms-com.png');
             }
@@ -280,4 +288,5 @@
         }
     </script>
 </body>
+
 </html>

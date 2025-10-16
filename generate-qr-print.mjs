@@ -29,7 +29,7 @@ QRCode.toFile(printPath, targetURL, printOptions, function (err) {
         console.error('❌ Error:', err);
         process.exit(1);
     }
-    
+
     console.log('✅ Print-quality QR Code created!');
     console.log('📐 Size: 1200x1200 pixels (High Resolution)');
     console.log('🎨 Format: PNG');

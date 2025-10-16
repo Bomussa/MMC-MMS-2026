@@ -7,6 +7,7 @@ import { pinRouter } from './api/routes/pin.js'
 import { queueRouter } from './api/routes/queue.js'
 import { routeRouter } from './api/routes/route.js'
 import { eventsRouter } from './api/routes/events.js'
+import sessionRouter from './api/routes/session.js'
 import { verifySystemHealth } from './core/monitor/health-check.js'
 import { clinicCallSchedulerTick, queueIntervalSeconds } from './core/queueManager.js'
 
@@ -18,6 +19,7 @@ app.use('/api/pin', pinRouter)
 app.use('/api/queue', queueRouter)
 app.use('/api/route', routeRouter)
 app.use('/api/events', eventsRouter)
+app.use('/api/session', sessionRouter)
 
 app.get('/api/health', async (_req: Request, res: Response) => {
   const health = await verifySystemHealth()

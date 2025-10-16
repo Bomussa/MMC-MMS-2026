@@ -31,7 +31,7 @@ QRCode.toFile(outputPath, targetURL, options, function (err) {
         console.error('❌ Error:', err);
         process.exit(1);
     }
-    
+
     console.log('✅ QR Code created successfully!');
     console.log('📐 Size: 600x600 pixels');
     console.log('🎨 Format: PNG');
